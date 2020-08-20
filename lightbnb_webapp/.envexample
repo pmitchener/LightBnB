@@ -1,5 +1,5 @@
 DB_HOST=localhost
 DB_NAME=[Your database name]
-DB_USER=[Your user]
-DB_PASS=[Your password]
+DB_USER=[Your database user]
+DB_PASS=[Your database password]
 DB_PORT= 5432
