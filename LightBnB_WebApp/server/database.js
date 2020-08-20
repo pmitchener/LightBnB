@@ -106,11 +106,51 @@ exports.getAllReservations = getAllReservations;
  * @return {Promise<[{}]>}  A promise to the properties.
  */
 const getAllProperties = function(options, limit = 10) {
-  const values = [limit];
-  const sql = `SELECT * FROM properties LIMIT $1`;
-  return pool.query(sql, values).then(res => res.rows);
-  //.catch(err => console.error('query error', err.stack));
-}
+  const sqlParams = [];
+  let sqlWhereClauseArray = [];
+  let sqlWhereString = "";
+  
+  if (options.city) {
+    sqlParams.push(`%${options.city}%`);
+    sqlWhereClauseArray.push(`properties.city LIKE $${sqlParams.length}`);
+  }
+
+  if (options.owner_id) {
+    sqlParams.push(options.owner_id);
+    sqlWhereClauseArray.push(`properties.owner_id = $${sqlParams.length}`);
+  }
+  
+  if (options.minimum_price_per_night) {
+    sqlParams.push(options.minimum_price_per_night * 100);
+    sqlWhereClauseArray.push(`properties.cost_per_night >= $${sqlParams.length}`);
+  }
+
+  if (options.maximum_price_per_night) {
+    sqlParams.push(options.maximum_price_per_night * 100);
+    sqlWhereClauseArray.push(`properties.cost_per_night <= $${sqlParams.length}`);    
+  }
+
+  if (sqlWhereClauseArray.length > 0) {
+    sqlWhereString = ` WHERE ${sqlWhereClauseArray.join(' AND ')}`;
+  }
+  let sqlHavingClause = "";
+  if (options.minimum_rating) {
+    sqlParams.push(options.minimum_rating);
+    sqlHavingClause = ` HAVING avg(property_reviews.rating) >= $${sqlParams.length}`;    
+  }
+  sqlParams.push(limit);
+  
+  const sql = `SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id
+  ${sqlWhereString ? sqlWhereString : ""}
+  GROUP BY properties.id
+  ${sqlHavingClause ? sqlHavingClause : ""}
+  ORDER BY cost_per_night
+  LIMIT $${sqlParams.length};`;
+  console.log(sql);
+  return pool.query(sql, sqlParams).then(res => res.rows);
+ }
 /* const getAllProperties = function(options, limit = 10) {
   const limitedProperties = {};
   for (let i = 1; i <= limit; i++) {
